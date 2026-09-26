@@ -44,3 +44,25 @@ Blind Hunter, 9 findings:
 - **low, patched.** The JSON input path had only a success test. Behaviour was already correct (checked: extra field, mismatch and numeric priority are all rejected from JSON); rejection tests are now added.
 - **low, patched.** No test covered an invalid category with a mismatched route. Behaviour was already correct (only `category` is reported; checked); a test is now added.
 - **false.** "Frontmatter says in-progress." That was the expected mid-workflow state, set to `done` at finalize. The `pythonpath` change in `pyproject.toml` is already recorded above.
+
+### Review Findings
+
+Code review of `story/Manjula-1.1` vs `main` (2026-09-26): Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor.
+
+- [x] [Review][Decision] Epic 1 spec commit rides on the story branch — `1a88f16` (SPEC.md, .memlog.md, stories.yaml, incl. story 2's definition) is on `story/Manjula-1.1`, so merging story 1 also lands the whole Epic 1 spec. AGENTS.md: one branch per story. — resolved: the spec is what story 1 is built from, so it merges to main with story 1.
+- [x] [Review][Patch] U+2028 test case is an invisible raw character that reads as `"One. Two."`; write it as `"One.\u2028Two."` [tests/test_triage_schema.py:93]
+- [x] [Review][Patch] Missing-field and extra-field tests assert membership (`in`) instead of the exact `== {field}` the other rejection tests use [tests/test_triage_schema.py:53]
+- [x] [Review][Patch] No test pins the deliberate "padded rationale is accepted" decision [tests/test_triage_schema.py:119]
+- [x] [Review][Patch] `ROUTE_FOR_CATEGORY` typed `dict[str, str]` instead of `dict[Category, Route]` [triage_schema.py:17]
+- [x] [Review][Patch] `frozen=True` does not stop `model_copy(update=...)` building an unvalidated decision (confirmed: billing + bug-team); document that changes must go through `model_validate` [triage_schema.py:29]
+- [x] [Review][Defer] JSON schema can't express the category–route pairing, so Gemini structured output won't enforce it; Epic 2 must handle the post-call `ValidationError` [triage_schema.py:38] — deferred: Epic 2 concern, not actionable in Epic 1's validation-only scope
+
+Rejected:
+- low, spec edit — story notes say "32 tests" (41 now), describe the old `\n`/`\r` rationale check, and `review_loop_iteration: 0`; fixes edit the spec under review.
+- low — zero-width-only (`​`) and control-char (`\x00`) rationales accept; confirmed, but unlikely model output and the fix adds a guard.
+- low — no rationale length cap; spec deliberately doesn't count sentences and sets no limit.
+- low — duplicate JSON keys: last value wins, and the resolved decision is itself valid; fix adds a guard.
+- false — non-object input gives `loc=()`: there is no field to name, the input is still rejected, and no test passes a non-object to the helper.
+- false — pairing check "silently" depends on field order: `test_category_route_mismatch_names_route` fails on a reorder.
+- false — `deferred-work.md` lacks id/status fields: no named harm; it's the BMad format.
+- false — `frozen=True`, the `pyproject.toml` `pythonpath` and the `.memlog.md`/`deferred-work.md` files are out of scope: each is recorded in this story or is BMad workflow output.

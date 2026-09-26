@@ -52,11 +52,11 @@ def test_pairing_matches_triage_policy():
 @pytest.mark.parametrize("field", ["category", "priority", "route", "rationale"])
 def test_missing_field_is_rejected(field):
     data = {k: v for k, v in VALID.items() if k != field}
-    assert field in failed_fields(data)
+    assert failed_fields(data) == {field}
 
 
 def test_extra_field_is_rejected():
-    assert "confidence" in failed_fields({**VALID, "confidence": 0.9})
+    assert failed_fields({**VALID, "confidence": 0.9}) == {"confidence"}
 
 
 @pytest.mark.parametrize(
@@ -90,7 +90,7 @@ def test_blank_rationale_is_rejected(rationale):
 
 @pytest.mark.parametrize(
     "rationale",
-    ["First line.\nSecond line.", "One.\r\nTwo.", "Trailing newline.\n", "One. Two.", "One.\x85Two.", "One.\vTwo.", "One.\fTwo."],
+    ["First line.\nSecond line.", "One.\r\nTwo.", "Trailing newline.\n", "One.\u2028Two.", "One.\x85Two.", "One.\vTwo.", "One.\fTwo."],
 )
 def test_multi_line_rationale_is_rejected(rationale):
     assert failed_fields({**VALID, "rationale": rationale}) == {"rationale"}
@@ -118,3 +118,7 @@ def test_decision_cannot_be_changed_after_validation():
 
 def test_rationale_with_abbreviations_is_one_line():
     TriageDecision.model_validate({**VALID, "rationale": "Double charge (e.g. on v2.1 invoices) is money at stake, so P2."})
+
+
+def test_padded_rationale_is_kept_as_written():
+    assert TriageDecision.model_validate({**VALID, "rationale": "  padded  "}).rationale == "  padded  "

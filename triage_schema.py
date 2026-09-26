@@ -14,7 +14,7 @@ Priority = Literal["P1", "P2", "P3", "P4"]
 Route = Literal["billing-team", "bug-team", "access-team", "performance-team", "how-to-team"]
 
 # One route per category, as in TRIAGE_POLICY.md.
-ROUTE_FOR_CATEGORY: dict[str, str] = {
+ROUTE_FOR_CATEGORY: dict[Category, Route] = {
     "billing": "billing-team",
     "bug": "bug-team",
     "access": "access-team",
@@ -24,7 +24,11 @@ ROUTE_FOR_CATEGORY: dict[str, str] = {
 
 
 class TriageDecision(BaseModel):
-    """A triage decision. Only well-formed decisions validate."""
+    """A triage decision. Only well-formed decisions validate.
+
+    Frozen, but model_copy(update=...) and model_construct() skip validation.
+    To change a field, validate again: model_validate({**d.model_dump(), **changes}).
+    """
 
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
