@@ -9,3 +9,6 @@
 ## Deferred from: code review of 2-seed-loader.md (2026-09-26)
 
 - The repo's `mcp/` folder has the same name as the installed `mcp` package, so `import mcp.triage_server` loads the package, not the server. Running `mcp/triage_server.py` as a script (the stdio launch Epic 2 will use) works; importing it as a module needs a file-path import, as `tests/test_load_seed.py` does.
+- source_spec: none
+  summary: Epic 3 CAP-8 — auto-approve every escalation during the eval run and count the auto-approved escalations.
+  evidence: Split from Epic 3 story 1 on 2026-09-26 at the user's choice; the escalate_to_human tool and its human-in-the-loop gate (Epic 2 story 2, CAP-5) aren't built yet, so there is nothing to approve or test.
