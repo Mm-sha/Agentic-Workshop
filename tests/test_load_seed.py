@@ -1,6 +1,9 @@
 import csv
 import importlib.util
+import shutil
 import sqlite3
+import subprocess
+import sys
 from contextlib import closing
 from pathlib import Path
 
@@ -66,17 +69,47 @@ def test_second_run_gives_the_same_database(db_path):
     assert dump(db_path) == first
 
 
-def test_triage_server_queries_return_data(db_path, monkeypatch):
+def load_triage_server():
     # Loaded by path: the folder name mcp/ clashes with the installed mcp package.
     spec = importlib.util.spec_from_file_location("triage_server", ROOT / "mcp" / "triage_server.py")
     server = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(server)
+    return server
+
+
+def test_loader_writes_where_server_reads():
+    assert load_seed.DB_PATH == load_triage_server().DB_PATH
+
+
+def test_script_run_twice_from_another_folder(tmp_path):
+    # A copy of the script and seed, so the real app.db is never touched.
+    repo = tmp_path / "repo"
+    shutil.copytree(SEED_DIR, repo / "seed")
+    shutil.copy(ROOT / "load_seed.py", repo)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    for _ in range(2):
+        result = subprocess.run(
+            [sys.executable, str(repo / "load_seed.py")], cwd=elsewhere, capture_output=True, text=True, check=True
+        )
+        assert "tickets: 24 rows" in result.stdout
+        assert "customers: 20 rows" in result.stdout
+    assert not (elsewhere / "app.db").exists()
+    with closing(sqlite3.connect(repo / "app.db")) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM tickets").fetchone() == (24,)
+        assert conn.execute("SELECT COUNT(*) FROM customers").fetchone() == (20,)
+
+
+def test_triage_server_queries_return_data(db_path, monkeypatch):
+    server = load_triage_server()
     load_seed.load_seed(db_path)
     monkeypatch.setattr(server, "DB_PATH", db_path)
     assert server.get_ticket("T-1042")["customer_id"] == "C-77"
     history = server.get_customer_history("C-77")
     assert history["customer_id"] == "C-77"
-    assert "T-1042" in history["ticket_ids"]
+    assert isinstance(history["open_tickets"], int)
+    _, tickets = read_csv("tickets.csv")
+    assert sorted(history["ticket_ids"]) == sorted(t[0] for t in tickets if t[1] == "C-77")
 
 
 def test_failed_load_keeps_previous_tables(db_path, tmp_path):
